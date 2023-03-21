@@ -1,0 +1,18 @@
+syntax = "proto3";
+// https://grpc.io/docs/languages/go/quickstart/
+option go_package="pkg/pb";
+package sample;
+
+service GreetingService {
+    rpc Hello(HelloRequest) returns (HelloResponse) {}
+}
+
+message HelloRequest {
+    string name = 1;
+
+}
+
+message HelloResponse {
+    string message = 1;
+
+}

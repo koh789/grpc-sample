@@ -5,6 +5,6 @@ help: ## help 表示 `make help` でタスクの一覧を確認できます
 
 .PHONY: protoc
 protoc: ## protoc
-	 protoc --go_out=./pkg/grpc --go_opt=paths=source_relative --go-grpc_out=./pkg/grpc  --go-grpc_opt=paths=source_relative  proto/*
+	 protoc --go_out=./pkg/pb --go_opt=paths=source_relative --go-grpc_out=./pkg/pb  --go-grpc_opt=paths=source_relative  proto/*
 
 
