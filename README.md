@@ -1,3 +1,4 @@
 # grpc-sample
 
-dummy a
+dummy 0
+dummy 1
