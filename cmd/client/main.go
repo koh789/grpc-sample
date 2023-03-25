@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -12,20 +14,16 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	scanner *bufio.Scanner
-	client  pb.GreetingServiceClient
+const (
+	address = "localhost:8080"
 )
 
 func main() {
 	fmt.Println("start gRPC Client.")
-	// 1. 標準入力から文字列を受け取るスキャナを用意
-	scanner = bufio.NewScanner(os.Stdin)
-	// 2. gRPCサーバーとのコネクションを確立
-	address := "localhost:8080"
+	//gRPCサーバーとのコネクションを確立
+
 	conn, err := grpc.Dial(
 		address,
-
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	)
@@ -34,21 +32,22 @@ func main() {
 		return
 	}
 	defer conn.Close()
-	// 3. gRPCクライアントを生成
-	client = pb.NewGreetingServiceClient(conn)
+	client := pb.NewGreetingServiceClient(conn)
+
+	// 標準入力から文字列を受け取るスキャナを用意
+	scanner := bufio.NewScanner(os.Stdin)
 	for {
-		fmt.Println("1: send Request")
-		fmt.Println("2: exit")
+		fmt.Println("1: request Hello - Unary RPC")
+		fmt.Println("2: request HelloServerStream - Server streaming RPC")
+		fmt.Println("3: exit")
 		fmt.Print("please enter >")
-
 		scanner.Scan()
-		in := scanner.Text()
-
-		switch in {
+		switch scanner.Text() {
 		case "1":
-			Hello()
-
+			Hello(client, scanner)
 		case "2":
+			HelloServerStream(client, scanner)
+		case "3":
 			fmt.Println("bye.")
 			goto M
 		}
@@ -56,7 +55,29 @@ func main() {
 M:
 }
 
-func Hello() {
+func HelloServerStream(client pb.GreetingServiceClient, scanner *bufio.Scanner) {
+	fmt.Println("Please enter your name.")
+	scanner.Scan()
+	req := &pb.HelloRequest{Name: scanner.Text()}
+	stream, err := client.HellowServerStream(context.Background(), req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for {
+		res, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			fmt.Println("all the responses have already received.")
+			break
+		}
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(res)
+	}
+}
+
+func Hello(client pb.GreetingServiceClient, scanner *bufio.Scanner) {
 	fmt.Println("Please enter your name.")
 	scanner.Scan()
 	name := scanner.Text()
