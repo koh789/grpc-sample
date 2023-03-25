@@ -18,12 +18,13 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// GreetingServiceClient is the unary_client API for GreetingService service.
+// GreetingServiceClient is the client API for GreetingService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GreetingServiceClient interface {
 	Hello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
 	HellowServerStream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (GreetingService_HellowServerStreamClient, error)
+	HelloClientStream(ctx context.Context, opts ...grpc.CallOption) (GreetingService_HelloClientStreamClient, error)
 }
 
 type greetingServiceClient struct {
@@ -75,12 +76,47 @@ func (x *greetingServiceHellowServerStreamClient) Recv() (*HelloResponse, error)
 	return m, nil
 }
 
-// GreetingServiceServer is the unary_server API for GreetingService service.
+func (c *greetingServiceClient) HelloClientStream(ctx context.Context, opts ...grpc.CallOption) (GreetingService_HelloClientStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GreetingService_ServiceDesc.Streams[1], "/sample.GreetingService/HelloClientStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &greetingServiceHelloClientStreamClient{stream}
+	return x, nil
+}
+
+type GreetingService_HelloClientStreamClient interface {
+	Send(*HelloRequest) error
+	CloseAndRecv() (*HelloResponse, error)
+	grpc.ClientStream
+}
+
+type greetingServiceHelloClientStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *greetingServiceHelloClientStreamClient) Send(m *HelloRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *greetingServiceHelloClientStreamClient) CloseAndRecv() (*HelloResponse, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(HelloResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// GreetingServiceServer is the server API for GreetingService service.
 // All implementations must embed UnimplementedGreetingServiceServer
 // for forward compatibility
 type GreetingServiceServer interface {
 	Hello(context.Context, *HelloRequest) (*HelloResponse, error)
 	HellowServerStream(*HelloRequest, GreetingService_HellowServerStreamServer) error
+	HelloClientStream(GreetingService_HelloClientStreamServer) error
 	mustEmbedUnimplementedGreetingServiceServer()
 }
 
@@ -93,6 +129,9 @@ func (UnimplementedGreetingServiceServer) Hello(context.Context, *HelloRequest) 
 }
 func (UnimplementedGreetingServiceServer) HellowServerStream(*HelloRequest, GreetingService_HellowServerStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method HellowServerStream not implemented")
+}
+func (UnimplementedGreetingServiceServer) HelloClientStream(GreetingService_HelloClientStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method HelloClientStream not implemented")
 }
 func (UnimplementedGreetingServiceServer) mustEmbedUnimplementedGreetingServiceServer() {}
 
@@ -146,6 +185,32 @@ func (x *greetingServiceHellowServerStreamServer) Send(m *HelloResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _GreetingService_HelloClientStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GreetingServiceServer).HelloClientStream(&greetingServiceHelloClientStreamServer{stream})
+}
+
+type GreetingService_HelloClientStreamServer interface {
+	SendAndClose(*HelloResponse) error
+	Recv() (*HelloRequest, error)
+	grpc.ServerStream
+}
+
+type greetingServiceHelloClientStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *greetingServiceHelloClientStreamServer) SendAndClose(m *HelloResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *greetingServiceHelloClientStreamServer) Recv() (*HelloRequest, error) {
+	m := new(HelloRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // GreetingService_ServiceDesc is the grpc.ServiceDesc for GreetingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -163,6 +228,11 @@ var GreetingService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "HellowServerStream",
 			Handler:       _GreetingService_HellowServerStream_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "HelloClientStream",
+			Handler:       _GreetingService_HelloClientStream_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "proto/greet.proto",
