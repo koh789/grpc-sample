@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -67,4 +69,18 @@ func (sv *greetingServiceImpl) HellowServerStream(req *pb.HelloRequest, stream p
 		time.Sleep(time.Second * 1)
 	}
 	return nil
+}
+
+func (sv *greetingServiceImpl) HelloClientStream(stream pb.GreetingService_HelloClientStreamServer) error {
+	nameList := make([]string, 0)
+	for {
+		req, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return stream.SendAndClose(&pb.HelloResponse{Message: fmt.Sprintf("Hello, %v,", nameList)})
+		}
+		if err != nil {
+			return err
+		}
+		nameList = append(nameList, req.GetName())
+	}
 }

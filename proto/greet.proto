@@ -6,6 +6,7 @@ package sample;
 service GreetingService {
     rpc Hello(HelloRequest) returns (HelloResponse) {}
     rpc HellowServerStream(HelloRequest) returns (stream HelloResponse);
+    rpc HelloClientStream(stream HelloRequest) returns (HelloResponse);
 }
 
 message HelloRequest {

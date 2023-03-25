@@ -39,7 +39,8 @@ func main() {
 	for {
 		fmt.Println("1: request Hello - Unary RPC")
 		fmt.Println("2: request HelloServerStream - Server streaming RPC")
-		fmt.Println("3: exit")
+		fmt.Println("3: request HelloClientStream - Client streaming RPC")
+		fmt.Println("4: exit")
 		fmt.Print("please enter >")
 		scanner.Scan()
 		switch scanner.Text() {
@@ -48,11 +49,29 @@ func main() {
 		case "2":
 			HelloServerStream(client, scanner)
 		case "3":
+			HelloClientStream(client, scanner)
+		case "4":
 			fmt.Println("bye.")
 			goto M
 		}
 	}
 M:
+}
+
+func Hello(client pb.GreetingServiceClient, scanner *bufio.Scanner) {
+	fmt.Println("Please enter your name.")
+	scanner.Scan()
+	name := scanner.Text()
+
+	req := &pb.HelloRequest{
+		Name: name,
+	}
+	res, err := client.Hello(context.Background(), req)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(res.GetMessage())
+	}
 }
 
 func HelloServerStream(client pb.GreetingServiceClient, scanner *bufio.Scanner) {
@@ -77,15 +96,23 @@ func HelloServerStream(client pb.GreetingServiceClient, scanner *bufio.Scanner) 
 	}
 }
 
-func Hello(client pb.GreetingServiceClient, scanner *bufio.Scanner) {
+func HelloClientStream(client pb.GreetingServiceClient, scanner *bufio.Scanner) {
 	fmt.Println("Please enter your name.")
-	scanner.Scan()
-	name := scanner.Text()
-
-	req := &pb.HelloRequest{
-		Name: name,
+	stream, err := client.HelloClientStream(context.Background())
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
-	res, err := client.Hello(context.Background(), req)
+	count := 5
+	fmt.Printf("Please enter %d names.\n", count)
+	for i := 0; i < count; i++ {
+		scanner.Scan()
+		if err := stream.Send(&pb.HelloRequest{Name: scanner.Text()}); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	res, err := stream.CloseAndRecv()
 	if err != nil {
 		fmt.Println(err)
 	} else {
