@@ -33,7 +33,7 @@ func main() {
 	reflection.Register(server)
 
 	go func() {
-		log.Printf("start gRPC unary_server port: %v", port)
+		log.Printf("start unary RPC, server streaming RPC, client streaming RPC port: %v", port)
 		server.Serve(listener)
 	}()
 
@@ -82,5 +82,22 @@ func (sv *greetingServiceImpl) HelloClientStream(stream pb.GreetingService_Hello
 			return err
 		}
 		nameList = append(nameList, req.GetName())
+	}
+}
+
+func (sv *greetingServiceImpl) HelloBiStreams(stream pb.GreetingService_HelloBiStreamsServer) error {
+	for {
+		// receive request
+		req, err := stream.Recv()
+		// 受信した結果errがio.EOFならリクエスト終了
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := stream.Send(&pb.HelloResponse{Message: fmt.Sprintf("Hello, %v!", req.GetName())}); err != nil {
+			return err
+		}
 	}
 }
