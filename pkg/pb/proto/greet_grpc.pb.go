@@ -18,11 +18,12 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// GreetingServiceClient is the client API for GreetingService service.
+// GreetingServiceClient is the unary_client API for GreetingService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GreetingServiceClient interface {
 	Hello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+	HellowServerStream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (GreetingService_HellowServerStreamClient, error)
 }
 
 type greetingServiceClient struct {
@@ -42,11 +43,44 @@ func (c *greetingServiceClient) Hello(ctx context.Context, in *HelloRequest, opt
 	return out, nil
 }
 
-// GreetingServiceServer is the server API for GreetingService service.
+func (c *greetingServiceClient) HellowServerStream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (GreetingService_HellowServerStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GreetingService_ServiceDesc.Streams[0], "/sample.GreetingService/HellowServerStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &greetingServiceHellowServerStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type GreetingService_HellowServerStreamClient interface {
+	Recv() (*HelloResponse, error)
+	grpc.ClientStream
+}
+
+type greetingServiceHellowServerStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *greetingServiceHellowServerStreamClient) Recv() (*HelloResponse, error) {
+	m := new(HelloResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// GreetingServiceServer is the unary_server API for GreetingService service.
 // All implementations must embed UnimplementedGreetingServiceServer
 // for forward compatibility
 type GreetingServiceServer interface {
 	Hello(context.Context, *HelloRequest) (*HelloResponse, error)
+	HellowServerStream(*HelloRequest, GreetingService_HellowServerStreamServer) error
 	mustEmbedUnimplementedGreetingServiceServer()
 }
 
@@ -56,6 +90,9 @@ type UnimplementedGreetingServiceServer struct {
 
 func (UnimplementedGreetingServiceServer) Hello(context.Context, *HelloRequest) (*HelloResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Hello not implemented")
+}
+func (UnimplementedGreetingServiceServer) HellowServerStream(*HelloRequest, GreetingService_HellowServerStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method HellowServerStream not implemented")
 }
 func (UnimplementedGreetingServiceServer) mustEmbedUnimplementedGreetingServiceServer() {}
 
@@ -88,6 +125,27 @@ func _GreetingService_Hello_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GreetingService_HellowServerStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(HelloRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GreetingServiceServer).HellowServerStream(m, &greetingServiceHellowServerStreamServer{stream})
+}
+
+type GreetingService_HellowServerStreamServer interface {
+	Send(*HelloResponse) error
+	grpc.ServerStream
+}
+
+type greetingServiceHellowServerStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *greetingServiceHellowServerStreamServer) Send(m *HelloResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // GreetingService_ServiceDesc is the grpc.ServiceDesc for GreetingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -100,6 +158,12 @@ var GreetingService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GreetingService_Hello_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "HellowServerStream",
+			Handler:       _GreetingService_HellowServerStream_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "proto/greet.proto",
 }
